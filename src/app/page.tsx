@@ -1,9 +1,13 @@
 import ButtonTest from '@/components/ButtonTest';
+import React from 'react';
 
-export default function Home() {
+function page() {
   return (
     <div>
       <ButtonTest />
     </div>
   );
 }
+
+export default page;
+
