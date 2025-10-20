@@ -1,365 +1,184 @@
-# SCSS 설치 및 테스트
+# Zustands
+
+- https://zustand.docs.pmnd.rs/getting-started/introduction
+- zustand(불어 state) 로서 전역 상태관리
+- Recoil과 흡사하지만 Next.js 에서는 React 19로서 Recoil 지원안함.
+- useState는 컴포넌트 State, zustands는 전역 state
 
 ## 1. 설치
 
 ```bash
-npm install sass
+npm install zustand
 ```
 
-## 2. Next.js 설정 업데이트
+## 2. 카운터 테스트 해보기 예제
 
-- `next.config.ts` 업데이트
+### 2.1. Store의 타입 정의
+
+- `/src/types 폴더` 생성
+- `/src/types/types.ts 파일` 생성
 
 ```ts
-import type { NextConfig } from 'next';
+// Counter Store 타입 정의
+export interface CounterState {
+  count: number; // 현재 카운터 값(숫자)
+  increment: () => void; // 카운터 1 증가
+  decrement: () => void; // 카운터 1 감소
+  reset: () => void; // 카운터 0 초기화
+  setCount: (count: number) => void; // 직접 카운터 값 설정
+}
+```
 
-const nextConfig: NextConfig = {
-  sassOptions: {
-    includePaths: ['./src/styles'],
-  },
+### 2.2. Store 의 구현하기
+
+- `/src/stores 폴더` 생성
+- `/src/stores/CounterStore.ts` 생성
+
+```ts
+// Counter Store - zustand로 카운터 관리
+// 1 단계 - store 타입 정의 (통상 types/types.ts 에 정의)
+// interface CounterState {
+//   count: number; // 현재 카운터 값(숫자)
+//   increment: () => void; // 카운터 1증가
+//   decrement: () => void; // 카운터 1감소
+//   reset: () => void; // 카운터 0 초기화
+//   setCount: (count: number) => void; // 직접 카운터 값 설정
+// }
+
+import { CounterState } from '@/types/types';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+// 2 단계 - store 구현(필요시 localStorage 활용)
+// get : state 읽기
+// set : state 쓰기
+// const counterState = create((set, get) => ({
+//   // 상태 (state)
+//   count: 0,
+//   // 상태를 바꾸는 함수(action)
+//   increment: () => set(state => ({ count: state.count + 1 })),
+// }));
+
+// 2 단계 1. localStorage가 적용안된버전
+const counterState = create<CounterState>()((set, get) => ({
+  // 상태값 (state)
+  count: 0,
+  // 상태값 갱신(actions)
+  increment: () => set(state => ({ count: state.count + 1 })),
+  decrement: () => set(state => ({ count: state.count - 1 })),
+  reset: () => set({ count: 0 }),
+  setCount: (count: number) => set({ count: count }),
+}));
+
+// 2 단계 2. localStorage가 적용된 버전
+const counterLocalState = create<CounterState>()(
+  persist(
+    (set, get) => ({
+      count: 0,
+      increment: () => set(state => ({ count: state.count + 1 })),
+      decrement: () => set(state => ({ count: state.count - 1 })),
+      reset: () => set({ count: 0 }),
+      setCount: (count: number) => set({ count: count }),
+    }),
+    { name: 'counter-storage' }
+  )
+);
+
+// 3 단계 - custom Hook 정의
+export const useCounter = () => {
+  const { count, increment, decrement, reset, setCount } = counterLocalState();
+  return { count, increment, decrement, reset, setCount };
 };
-
-export default nextConfig;
 ```
 
-## 3. SCSS 파일 구조 생성
+### 2.3. 활용해보기
 
-### 3.1. `/src/styles 폴더` 생성
-
-- 파일들은 `_를 활용해서 css 파일이 생성되지 않도록` 함.
-
-### 3.2. `/src/styles/_variables.scss` 생성
-
-- 색상, 간격, breakpoint 변수들 배치
-
-```scss
-// SCSS Variables
-$primary-color: #0070f3;
-$secondary-color: #7928ca;
-$success-color: #0070f3;
-$warning-color: #f5a623;
-$error-color: #e00;
-$background-color: #ffffff;
-$text-color: #333333;
-
-// Breakpoints
-$mobile: 480px;
-$tablet: 768px;
-$desktop: 1024px;
-$large-desktop: 1200px;
-
-// Spacing
-$spacing-xs: 0.25rem;
-$spacing-sm: 0.5rem;
-$spacing-md: 1rem;
-$spacing-lg: 1.5rem;
-$spacing-xl: 2rem;
-$spacing-2xl: 3rem;
-
-// Border radius
-$border-radius-sm: 0.25rem;
-$border-radius-md: 0.5rem;
-$border-radius-lg: 0.75rem;
-$border-radius-xl: 1rem;
-
-// Shadows
-$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-```
-
-### 3.3. `/src/styles/_mixins.scss` 생성
-
-- 마치 함수처럼 재활용을 위한 내용
-- 버튼, 카드, 반응형 등의 믹스인 내용
-- scss의 import 방식이 변화됨(`@import가 Deprecated 됨` - 구식 버전)
-- scss의 import 방식이 변화됨(`@use 가 추천됨` - 최신 버전)
-
-```scss
-// SCSS Mixins
-@use 'variables' as *;
-
-// Media queries
-@mixin mobile {
-  @media (max-width: #{$mobile - 1px}) {
-    @content;
-  }
-}
-
-@mixin tablet {
-  @media (min-width: #{$tablet}) and (max-width: #{$desktop - 1px}) {
-    @content;
-  }
-}
-
-@mixin desktop {
-  @media (min-width: #{$desktop}) {
-    @content;
-  }
-}
-
-@mixin large-desktop {
-  @media (min-width: #{$large-desktop}) {
-    @content;
-  }
-}
-
-// Flexbox utilities
-@mixin flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-@mixin flex-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-@mixin flex-column {
-  display: flex;
-  flex-direction: column;
-}
-
-// Button styles
-
-@mixin button-base {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: $border-radius-md;
-  font-weight: 500;
-  transition: all 0.2s ease-in-out;
-  cursor: pointer;
-  border: none;
-  outline: none;
-
-  &:focus {
-    outline: 2px solid $primary-color;
-    outline-offset: 2px;
-  }
-}
-
-@mixin button-primary {
-  @include button-base;
-  background-color: $primary-color;
-  color: white;
-
-  &:hover {
-    background-color: darken($primary-color, 10%);
-  }
-}
-
-@mixin button-secondary {
-  @include button-base;
-  background-color: transparent;
-  color: $primary-color;
-  border: 1px solid $primary-color;
-
-  &:hover {
-    background-color: $primary-color;
-    color: white;
-  }
-}
-
-// Card styles
-@mixin card {
-  background: white;
-  border-radius: $border-radius-lg;
-  box-shadow: $shadow-md;
-  padding: $spacing-lg;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-// Text utilities
-@mixin text-truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@mixin text-multiline-truncate($lines: 2) {
-  display: -webkit-box;
-  -webkit-line-clamp: $lines;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-```
-
-### 3.4. `/src/app/globals.scss` 생성
-
-- 전역 스타일
-
-```scss
-// SCSS 변수와 믹스인 import
-@use '../styles/variables' as *;
-@use '../styles/mixins' as *;
-
-// Tailwind CSS import
-@use 'tailwindcss';
-
-// 전역 스타일
-* {
-  box-sizing: border-box;
-}
-
-body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  line-height: 1.6;
-  color: $text-color;
-  background-color: $background-color;
-}
-
-// SCSS로 만든 유틸리티 클래스
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 $spacing-md;
-
-  @include mobile {
-    padding: 0 $spacing-sm;
-  }
-}
-
-.btn {
-  @include button-base;
-  padding: $spacing-sm $spacing-md;
-  font-size: 1rem;
-
-  &.btn-primary {
-    @include button-primary;
-  }
-
-  &.btn-secondary {
-    @include button-secondary;
-  }
-}
-```
-
-## 4. SCSS 적용
-
-- `/src/app/layout.tsx` 업데이트
+- `/src/components/Counter.tsx 파일` 생성
 
 ```tsx
-import './globals.scss';
-```
+/**
+ * Counter 컴포넌트 - Zustand를 사용한 카운터 기능 구현
+ *
+ * 이 컴포넌트는 useCounterStore 훅을 사용하여 카운터 상태를 관리합니다.
+ * 사용자가 버튼을 클릭하거나 직접 값을 입력하여 카운터를 조작할 수 있습니다.
+ */
 
-### 4.1. SCSS 테스트 파일
+'use client';
 
-- `/src/components/SCSSTest.tsx 파일` 생성
+import { useCounterStore } from '@/stores/CounterStore';
 
-```tsx
-import styles from './SCSSTest.module.scss';
+/**
+ * Counter - 카운터 기능을 제공하는 React 컴포넌트
+ *
+ * Zustand의 useCounterStore 훅을 사용하여:
+ * - 현재 카운터 값을 표시
+ * - 증가/감소/리셋 버튼 제공
+ * - 직접 값 입력 기능 제공
+ *
+ * @returns JSX.Element - 카운터 UI 컴포넌트
+ */
+export default function Counter() {
+  // Zustand 스토어에서 상태와 액션들을 가져옵니다
+  const { count, increment, decrement, reset, setCount } = useCounterStore();
 
-export default function SCSSTest() {
   return (
-    <div className={styles.container}>
-      <h2 className={styles.title}>SCSS 테스트 컴포넌트</h2>
-      <p className={styles.description}>
-        이 컴포넌트는 SCSS 모듈을 사용하여 스타일링됩니다.
-      </p>
-      <div className={styles.buttonGroup}>
-        <button className={styles.primaryButton}>Primary Button</button>
-        <button className={styles.secondaryButton}>Secondary Button</button>
-      </div>
-      <div className={styles.card}>
-        <h3>SCSS 카드</h3>
-        <p>이 카드는 SCSS 믹스인을 사용하여 스타일링되었습니다.</p>
+    <div className='p-6 max-w-md mx-auto bg-white rounded-xl shadow-lg space-y-4'>
+      {/* 컴포넌트 제목 */}
+      <h2 className='text-2xl font-bold text-center text-gray-800'>
+        Counter with Zustand
+      </h2>
+
+      <div className='text-center'>
+        {/* 현재 카운터 값을 큰 글씨로 표시 */}
+        <div className='text-4xl font-bold text-blue-600 mb-4'>{count}</div>
+
+        {/* 카운터 조작 버튼들 */}
+        <div className='space-x-2'>
+          {/* 감소 버튼 - 클릭 시 decrement 액션 호출 */}
+          <button
+            onClick={decrement}
+            className='px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors'
+          >
+            -1
+          </button>
+
+          {/* 증가 버튼 - 클릭 시 increment 액션 호출 */}
+          <button
+            onClick={increment}
+            className='px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors'
+          >
+            +1
+          </button>
+
+          {/* 리셋 버튼 - 클릭 시 reset 액션 호출 */}
+          <button
+            onClick={reset}
+            className='px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors'
+          >
+            Reset
+          </button>
+        </div>
+
+        {/* 직접 값 입력 필드 */}
+        <div className='mt-4'>
+          <input
+            type='number'
+            value={count}
+            onChange={e => setCount(Number(e.target.value))} // 입력값을 숫자로 변환하여 setCount 액션 호출
+            className='w-20 px-2 py-1 border border-gray-300 rounded text-center'
+          />
+        </div>
       </div>
     </div>
   );
 }
 ```
 
-- `/src/components/SCSSTest.module.scss 파일` 생성
-
-```scss
-@use '../styles/variables' as *;
-@use '../styles/mixins' as *;
-
-.container {
-  padding: $spacing-lg;
-  max-width: 800px;
-  margin: 0 auto;
-
-  @include mobile {
-    padding: $spacing-md;
-  }
-}
-
-.title {
-  color: $primary-color;
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: $spacing-md;
-
-  @include mobile {
-    font-size: 1.5rem;
-  }
-}
-
-.description {
-  color: $text-color;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  margin-bottom: $spacing-lg;
-}
-
-.buttonGroup {
-  @include flex-center;
-  gap: $spacing-md;
-  margin-bottom: $spacing-xl;
-
-  @include mobile {
-    @include flex-column;
-    gap: $spacing-sm;
-  }
-}
-
-.primaryButton {
-  @include button-primary;
-  padding: $spacing-sm $spacing-lg;
-}
-
-.secondaryButton {
-  @include button-secondary;
-  padding: $spacing-sm $spacing-lg;
-}
-
-.card {
-  @include card;
-
-  h3 {
-    color: $primary-color;
-    margin-bottom: $spacing-sm;
-    font-size: 1.25rem;
-  }
-
-  p {
-    color: $text-color;
-    line-height: 1.6;
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-lg;
-    transition: all 0.2s ease-in-out;
-  }
-}
-```
-
-### 4.2. 컴포넌트 출력 테스트
-
-- `/src/app/page.tsx` 업데이트
+- `/src/app/page.tsx` 출력하기
 
 ```tsx
 import ButtonTest from '@/components/ButtonTest';
+import Counter from '@/components/Counter';
 import SCSSTest from '@/components/SCSSTest';
 import React from 'react';
 
@@ -368,6 +187,7 @@ function page() {
     <div>
       <ButtonTest />
       <SCSSTest />
+      <Counter />
     </div>
   );
 }
@@ -375,3 +195,402 @@ function page() {
 export default page;
 ```
 
+## 3. 사용자 프로필 테스트 해보기 예제
+
+### 3.1. Store의 타입 정의
+
+- `/src/types/types.ts`에 Store 타입 추가
+
+```ts
+// Counter Store 타입 정의
+export interface CounterState {
+  count: number; // 현재 카운터 값(숫자)
+  increment: () => void; // 카운터 1 증가
+  decrement: () => void; // 카운터 1 감소
+  reset: () => void; // 카운터 0 초기화
+  setCount: (count: number) => void; // 직접 카운터 값 설정
+}
+
+// User 타입 정의
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+// User Store 타입
+export interface UserState {
+  user: User | null; // 현재 로그인한 사용자 정보 (null 이면 로그아웃된 상태)
+  isLoggedIn: boolean; // 로그인 여부를 나타내는 Boolean 값
+  isLoading: boolean; // 로그인/로그아웃 처리중인지 나타내는 Boolean 값
+  login: (user: User) => void; // 사용자 로그인 처리 함수
+  logout: () => void; // 사용자 로그아웃 처리 함수
+  updateUser: (user: Partial<User>) => void; // User의 모든 속성을 선택적 옵션으로 정의
+  setLoading: (loading: boolean) => void; // 로딩 상태 설정 함수
+}
+```
+
+### 3.2. Store의 구현하기
+
+- `/src/stores/UserStore.ts 파일` 생성
+
+```ts
+// User Store - zustand 로 카운터 관리
+
+import { User, UserState } from '@/types/types';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+// 1 단계 - store 타입 정의 (통상 types/types.ts 에 정의)
+// import { User } from "@/types/types";
+// interface UserState {
+//   user: User | null; // 현재 로그인한 사용자 정보(null 이면 로그아웃된 상태)
+//   isLoggedIn: boolean; // 로그인 여부를 나타내는 Boolean 값
+//   isLoading: boolean; // 로그인/로그아웃 처리중인지 나타내는 Boolean 값
+//   login: (user: User) => void; // 사용자 로그인 처리 함수
+//   logout: () => void; // 사용자 로그아웃 처리 함수
+//   updateUser: (user: Partial<User>) => void; // User 의 모든 속성을 선택적 옵션으로 정의
+//   setLoading: (loading: boolean) => void; // 로딩 상태 설정 함수
+// }
+
+// 2 단계 - store 구현(필요시 localStorage 활용)
+// create :  store 즉, state 만들기
+// get : state 읽기
+// set : state 쓰기
+
+// 2 단계 1. localStorage 가 적용 안된버전
+const userStore = create<UserState>()((set, get) => ({
+  // 초기상태
+  user: null,
+  isLoggedIn: false,
+  isLoading: false,
+  // 사용자 정보 업데이트
+  login: (user: User) =>
+    set({ user: user, isLoggedIn: true, isLoading: false }),
+  logout: () => set({ user: null, isLoggedIn: false, isLoading: false }),
+
+  updateUser: (userData: Partial<User>) =>
+    set(state => ({
+      user: state.user ? { ...state.user, ...userData } : null,
+    })),
+  setLoading: (loading: boolean) => set({ isLoading: loading }),
+}));
+
+// 2 단계 2. localStorage 가 적용된버전
+const userLocalStore = create<UserState>()(
+  persist(
+    (set, get) => ({
+      // 초기상태
+      user: null,
+      isLoggedIn: false,
+      isLoading: false,
+      // 사용자 정보 업데이트
+      login: (user: User) =>
+        set({ user: user, isLoggedIn: true, isLoading: false }),
+      logout: () => set({ user: null, isLoggedIn: false, isLoading: false }),
+      updateUser: (userData: Partial<User>) =>
+        set(state => ({
+          user: state.user ? { ...state.user, ...userData } : null,
+        })),
+      // 로딩 상태 설정
+      setLoading: (loading: boolean) => set({ isLoading: loading }),
+    }),
+    {
+      name: 'user-storage',
+    }
+  )
+);
+
+// 3 단계 - custom Hook 정의
+export const useUserState = () => {
+  const { user, isLoggedIn, isLoading, login, logout, updateUser, setLoading } =
+    userLocalStore();
+  return { user, isLoggedIn, isLoading, login, logout, updateUser, setLoading };
+};
+```
+
+### 3.3. Store 활용하기
+
+- `/src/components/UserProfile.tsx`
+
+```tsx
+/**
+ * UserProfile 컴포넌트 - Zustand를 사용한 사용자 인증 기능 구현
+ *
+ * 이 컴포넌트는 useUserStore 훅을 사용하여 사용자 로그인/로그아웃과
+ * 프로필 정보 수정 기능을 제공합니다.
+ */
+
+'use client';
+
+import { useState } from 'react';
+import Image from 'next/image';
+import { useUserStore } from '@/stores/UserStore';
+
+/**
+ * UserProfile - 사용자 인증 및 프로필 관리 컴포넌트
+ *
+ * Zustand의 useUserStore 훅을 사용하여:
+ * - 로그인/로그아웃 기능
+ * - 사용자 정보 표시 및 수정
+ * - 로딩 상태 관리
+ *
+ * @returns JSX.Element - 사용자 프로필 UI 컴포넌트
+ */
+export default function UserProfile() {
+  // Zustand 스토어에서 사용자 관련 상태와 액션들을 가져옵니다
+  const { user, isLoggedIn, isLoading, login, logout, updateUser, setLoading } =
+    useUserStore();
+
+  // 로컬 상태: 편집 모드와 편집 중인 이름
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+
+  /**
+   * handleLogin - 로그인 처리 함수
+   *
+   * 로딩 상태를 true로 설정하고 1초 후 시뮬레이션된 사용자 정보로 로그인합니다.
+   * 실제 프로젝트에서는 API 호출로 대체되어야 합니다.
+   */
+  const handleLogin = () => {
+    setLoading(true);
+    // 시뮬레이션된 로그인 (실제로는 API 호출)
+    setTimeout(() => {
+      login({
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        avatar: 'https://via.placeholder.com/150',
+      });
+    }, 1000);
+  };
+
+  /**
+   * handleLogout - 로그아웃 처리 함수
+   *
+   * Zustand 스토어의 logout 액션을 호출하여 사용자 정보를 초기화합니다.
+   */
+  const handleLogout = () => {
+    logout();
+  };
+
+  /**
+   * handleUpdateName - 사용자 이름 업데이트 함수
+   *
+   * 편집된 이름이 유효한 경우에만 사용자 정보를 업데이트하고
+   * 편집 모드를 종료합니다.
+   */
+  const handleUpdateName = () => {
+    if (editName.trim()) {
+      updateUser({ name: editName });
+      setIsEditing(false);
+      setEditName('');
+    }
+  };
+
+  // 로딩 상태일 때 로딩 스피너 표시
+  if (isLoading) {
+    return (
+      <div className='p-6 max-w-md mx-auto bg-white rounded-xl shadow-lg'>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto'></div>
+          <p className='mt-2 text-gray-600'>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className='p-6 max-w-md mx-auto bg-white rounded-xl shadow-lg space-y-4'>
+      <h2 className='text-2xl font-bold text-center text-gray-800'>
+        User Profile
+      </h2>
+
+      {!isLoggedIn ? (
+        // 로그아웃 상태: 로그인 버튼 표시
+        <div className='text-center'>
+          <p className='text-gray-600 mb-4'>
+            Please log in to view your profile
+          </p>
+          <button
+            onClick={handleLogin}
+            className='px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors'
+          >
+            Login
+          </button>
+        </div>
+      ) : (
+        // 로그인 상태: 사용자 정보 표시
+        <div className='space-y-4'>
+          {/* 사용자 아바타 이미지 */}
+          {user?.avatar && (
+            <div className='text-center'>
+              <Image
+                src={user.avatar}
+                alt='Avatar'
+                width={80}
+                height={80}
+                className='w-20 h-20 rounded-full mx-auto'
+              />
+            </div>
+          )}
+
+          <div className='text-center'>
+            {isEditing ? (
+              // 편집 모드: 이름 수정 폼
+              <div className='space-y-2'>
+                <input
+                  type='text'
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className='w-full px-3 py-2 border border-gray-300 rounded'
+                  placeholder='Enter new name'
+                />
+                <div className='space-x-2'>
+                  <button
+                    onClick={handleUpdateName}
+                    className='px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600'
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditName('');
+                    }}
+                    className='px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600'
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // 표시 모드: 사용자 정보 표시
+              <div>
+                <h3 className='text-xl font-semibold'>{user?.name}</h3>
+                <p className='text-gray-600'>{user?.email}</p>
+                <button
+                  onClick={() => {
+                    setIsEditing(true);
+                    setEditName(user?.name || '');
+                  }}
+                  className='mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600'
+                >
+                  Edit Name
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 로그아웃 버튼 */}
+          <div className='text-center'>
+            <button
+              onClick={handleLogout}
+              className='px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors'
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+- `/src/app/page.tsx` 업데이트
+
+```tsx
+import ButtonTest from '@/components/ButtonTest';
+import Counter from '@/components/Counter';
+import SCSSTest from '@/components/SCSSTest';
+import UserProfile from '@/components/UserProfile';
+import React from 'react';
+
+function page() {
+  return (
+    <div>
+      <ButtonTest />
+      <SCSSTest />
+      <Counter />
+      <br />
+      <br />
+      <UserProfile />
+    </div>
+  );
+}
+
+export default page;
+```
+
+- `/next.config.ts` 업데이트
+
+```ts
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  sassOptions: {
+    includePaths: ['./src/styles'],
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+      },
+    ],
+  },
+};
+
+export default nextConfig;
+```
+
+## 4. 테마 테스트 해보기
+
+### 4.1. Store 의 타입 정의
+
+- `/src/types/types.ts` 업데이트
+
+```ts
+// Counter Store 타입 정의
+export interface CounterState {
+  count: number; // 현재 카운터 값(숫자)
+  increment: () => void; // 카운터 1 증가
+  decrement: () => void; // 카운터 1 감소
+  reset: () => void; // 카운터 0 초기화
+  setCount: (count: number) => void; // 직접 카운터 값 설정
+}
+
+// User 타입 정의
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+// User Store 타입
+export interface UserState {
+  user: User | null; // 현재 로그인한 사용자 정보 (null 이면 로그아웃된 상태)
+  isLoggedIn: boolean; // 로그인 여부를 나타내는 Boolean 값
+  isLoading: boolean; // 로그인/로그아웃 처리중인지 나타내는 Boolean 값
+  login: (user: User) => void; // 사용자 로그인 처리 함수
+  logout: () => void; // 사용자 로그아웃 처리 함수
+  updateUser: (user: Partial<User>) => void; // User의 모든 속성을 선택적 옵션으로 정의
+  setLoading: (loading: boolean) => void; // 로딩 상태 설정 함수
+}
+
+// 테마 타입 정의
+export type Theme = 'light' | 'dark' | 'system';
+// 테마 Store 타입 정의
+export interface ThemeState {
+  theme: Theme; // 현재 선택된 테마
+  setTheme: (theme: Theme) => void; // 특정 테마로 설정하는 함수
+  toggleTheme: () => void; // 라이트/다크 테마를 전환하는 함수
+}
+```
+
+### 4.2. Store 구현하기
+
+- `/src/stores/ThemeStore.ts 파일` 생성
+
+### 4.3. Store 활용하기
