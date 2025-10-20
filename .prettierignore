@@ -106,4 +106,4 @@ LICENSE
 # Config files that should not be formatted
 *.config.js
 # *.config.mjs
-*.config.ts
+# *.config.ts
