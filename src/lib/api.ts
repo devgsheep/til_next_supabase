@@ -40,9 +40,9 @@ export interface Todo {
   completed: boolean;
 }
 
-// 사용자 목록 가져오기 API
+// 사용자 목록가져오기 API
 export async function fetchUsers(): Promise<User[]> {
-  // Vanila js 활용 (Next.js의 fetch 아님)
+  // Vanila js 활용(Next.js 의 fetch 아님)
   const response = await fetch('https://jsonplaceholder.typicode.com/users');
 
   if (!response.ok) {
@@ -54,7 +54,7 @@ export async function fetchUsers(): Promise<User[]> {
 
 // 특정 사용자 정보 가져오기
 export async function fetchUser(id: number): Promise<User> {
-  // Vanila js 활용 (Next.js의 fetch 아님)
+  // Vanila js 활용(Next.js 의 fetch 아님)
   const response = await fetch(
     `https://jsonplaceholder.typicode.com/users/${id}`
   );
@@ -67,12 +67,14 @@ export async function fetchUser(id: number): Promise<User> {
 }
 
 // 게시글 목록 가져오기
+// 전체 가져오기 기능
+// 또는 각 사용자별 가져오기 기능
 export async function fetchPosts(userId?: number): Promise<Post[]> {
   const url = userId
     ? `https://jsonplaceholder.typicode.com/posts?userId=${userId}`
     : 'https://jsonplaceholder.typicode.com/posts';
 
-  // Vanila js 활용 (Next.js의 fetch 아님)
+  // Vanila js 활용(Next.js 의 fetch 아님)
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -82,15 +84,15 @@ export async function fetchPosts(userId?: number): Promise<Post[]> {
   return response.json();
 }
 
-// 특정 게시글 상세 정보를 가져오기
+// 특정 게시글 상세 정보들 가져오기
+
 export async function fetchPost(id: number): Promise<Post> {
-  // Vanila js 활용 (Next.js의 fetch 아님)
   const response = await fetch(
     `https://jsonplaceholder.typicode.com/posts/${id}`
   );
 
   if (!response.ok) {
-    throw new Error(`${id} 게시글 상세정보 가져오기 실패`);
+    throw new Error(`게시글 상세정보 가져오기 실패`);
   }
 
   return response.json();
@@ -111,6 +113,7 @@ export async function fetchComments(postId: number): Promise<Comment[]> {
 }
 
 // 할일 목록 가져오기
+
 export async function fetchTodos(userId?: number): Promise<Todo[]> {
   const url = userId
     ? `https://jsonplaceholder.typicode.com/todos?userId=${userId}`
@@ -126,6 +129,23 @@ export async function fetchTodos(userId?: number): Promise<Todo[]> {
 }
 
 // 새 게시글 생성하는 함수
+export async function createPost(post: Omit<Post, 'id'>): Promise<Post> {
+  const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(post),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create post');
+  }
+
+  return response.json();
+}
+
+// 게시글 수정하는 함수
 export async function updatePost(
   id: number,
   post: Partial<Post>
