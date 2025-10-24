@@ -1,8 +1,8 @@
 // 선택된 사용자의 상세 정보를 표시하는 컴포넌트
 'use client';
 
-import { usePost, usePosts } from '@/hooks/usePosts';
-import { useUserSelection } from '@/hooks/useQueryIntergration';
+import { usePosts } from '@/hooks/usePosts';
+import { useUserSelection } from '@/hooks/useQueryIntegration';
 
 const UserDetail = () => {
   // 선택된 사용자 정보를 가져옴
@@ -12,6 +12,7 @@ const UserDetail = () => {
     isLoading: userLoading,
     error: userError,
   } = useUserSelection();
+
   // 선택된 사용자 게시글 가져옴
   const {
     data: posts,
@@ -61,7 +62,7 @@ const UserDetail = () => {
     );
   }
 
-  // 사용자 정보 가져오다가 에러나면
+  // 사용자 정보 가져오다가 에러라면
   if (userError) {
     return (
       <div className='p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-lg'>
@@ -74,6 +75,7 @@ const UserDetail = () => {
   }
 
   // 사용자 정보 및 posts 출력
+
   return (
     <div className='p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-lg space-y-6'>
       {/* 사용자 기본 정보 */}

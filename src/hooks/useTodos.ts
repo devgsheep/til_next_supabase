@@ -2,14 +2,15 @@
 
 import { fetchTodos, Todo } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { error } from 'console';
 
 // 할일 목록 가져오기 훅
 export function useTodos(userId?: number) {
   return useQuery({
     queryKey: userId ? ['todos', 'user', userId] : ['todos'],
     queryFn: () => fetchTodos(userId),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 1 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -20,17 +21,18 @@ export function useTodaysByStatus(userId?: number, completed?: boolean) {
     queryFn: async () => {
       const todos = await fetchTodos(userId);
       // 완료 상태가 지정된 경우 필터링
-      // completed === true : 완료
-      // completed === false : 미완료
-      // completed === undefined : 모두다
+      // complted === true :  완료
+      // complted === false :  미완료
+      // complted === undefiend :  모두다
       if (completed !== undefined) {
         return todos.filter(todo => todo.completed === completed);
       }
       return todos;
     },
+    staleTime: 1 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
-
 // 할일 통계 정보를 가져오는 훅
 export function useTodoStats(userId?: number) {
   const todosQuery = useTodos(userId);
@@ -66,11 +68,12 @@ export function useCreateTodo() {
     onSuccess: newTodo => {
       // 할일 목록 쿼리들을 무효화
       queryClient.invalidateQueries({ queryKey: ['todos'] });
+
       // 새로 생성된 할일을 캐시에 추가
       queryClient.setQueryData(['todos', newTodo.id], newTodo);
     },
     onError: error => {
-      console.log('할일 생성에 실패했어요', error);
+      console.log('할일 생성에 실패했어요.', error);
     },
   });
 }
@@ -83,7 +86,7 @@ export function useUpdateTodo() {
       id,
       updates,
     }: {
-      id: Number;
+      id: number;
       updates: Partial<Todo>;
     }) => {
       // 실제 API 테스트 못하므로 데모용으로
@@ -94,11 +97,12 @@ export function useUpdateTodo() {
       // 해당 할일 쿼리를 무효화
       queryClient.invalidateQueries({ queryKey: ['todos', updatedTodo.id] });
       // 할일 목록 쿼리들도 무효화
-      queryClient.setQueryData(['todos', updatedTodo.id], updatedTodo);
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
       // 수정된 할일을 캐시에 업데이트
+      queryClient.setQueryData(['todos', updatedTodo.id], updatedTodo);
     },
     onError: error => {
-      console.log('업데이트에 실패했습니다', error);
+      console.log('업데이트에 실패했습니다.', error);
     },
   });
 }
@@ -130,11 +134,13 @@ export function useToggleTodo() {
     mutationFn: async (id: number) => {
       // 실제 API 테스트 못하므로 데모용으로
       await new Promise(resolve => setTimeout(resolve, 300));
+
       // 현재 할일 정보를 가져와서 상태를 토글
-      // 아래 내용 즉, getQueryData의 용도를 파악해 두자.
-      // api 호출 없이 React Query의 캐시데이터를 직접 가져오는 방법
+      // 아래 내용 즉, getQueryData 의 용도를 파악해 두자.
+      // - api 호출 없이 React Query 의 캐시데이터를 직접 가져오는 방법
       const currentTodos = queryClient.getQueryData<Todo[]>(['todos']);
       const todo = currentTodos?.find(item => item.id === id);
+
       if (!todo) {
         throw new Error('없는 Todo 입니다.');
       }
@@ -143,17 +149,13 @@ export function useToggleTodo() {
         completed: !todo.completed,
       };
     },
-    onSuccess: toggleTodo => {
+    onSuccess: toggledTodo => {
       // 해당 할일 쿼리를 무효화
-      queryClient.invalidateQueries({
-        queryKey: ['todos', toggleTodo.id],
-      });
+      queryClient.invalidateQueries({ queryKey: ['todos', toggledTodo.id] });
       // 할일 목록 쿼리를 무효화
-      queryClient.invalidateQueries({
-        queryKey: ['todos'],
-      });
+      queryClient.invalidateQueries({ queryKey: ['todos'] });
       // 토글된 할일을 캐시에 업데이트
-      queryClient.setQueryData(['todos', toggleTodo.id], toggleTodo);
+      queryClient.setQueryData(['todos', toggledTodo.id], toggledTodo);
     },
     onError: error => {
       console.log('토글에 실패했습니다.', error);

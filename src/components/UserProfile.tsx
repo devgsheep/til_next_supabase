@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useUserStore } from '@/stores/UserStore';
+import { useUserState } from '@/stores/UserStore';
 
 /**
  * UserProfile - 사용자 인증 및 프로필 관리 컴포넌트
@@ -24,7 +24,7 @@ import { useUserStore } from '@/stores/UserStore';
 export default function UserProfile() {
   // Zustand 스토어에서 사용자 관련 상태와 액션들을 가져옵니다
   const { user, isLoggedIn, isLoading, login, logout, updateUser, setLoading } =
-    useUserStore();
+    useUserState();
 
   // 로컬 상태: 편집 모드와 편집 중인 이름
   const [isEditing, setIsEditing] = useState(false);

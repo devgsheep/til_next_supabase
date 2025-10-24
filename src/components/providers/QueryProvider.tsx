@@ -1,12 +1,11 @@
-/**
-QueryClient를 App 전체에 제공함
-- 모든 하위 컴포넌트에서 useQuery, useMutation 등의 훅을 사용할 수 있게 함
- */
-
+/*
+QueryClient 를 App 전체에 제공함
+- 모든 하위 컴포넌트에서 useQuery, useMutaion 등의 훅을 사용할 수있게함
+ **/
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools/production';
 import { useState } from 'react';
 
 export default function QueryProvider({
@@ -15,9 +14,9 @@ export default function QueryProvider({
   children: React.ReactNode;
 }) {
   // React 라면 아래 설정은 달라집니다.
-  // 현재 Next.js 에다가 세팅을 진행함.
+  // 현재 Next.js 에다가 셋팅을 진행함.
   // 서버 사이드 렌더링을 위한 QueryClient 인스턴스 생성
-  // 각 요청마다 새로운 QueryClient을 생성하여 상태 구분함
+  // 각 요청마다 새로운 QueryClient 를 생성하여 상태 구분함.
   const [client, setClient] = useState(
     () =>
       new QueryClient({
@@ -25,7 +24,7 @@ export default function QueryProvider({
           queries: {
             // 서버 사이드에서는 즉시 staleTime을 0으로 처리
             staleTime: 0,
-            // 서버 사이드에서는 캐시하지 않는다
+            // 서버 사이드에서는 캐시하지 않음
             gcTime: 0,
           },
         },

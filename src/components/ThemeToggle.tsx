@@ -2,7 +2,7 @@
 
 import { useThemeStore } from '@/stores/ThemeStore';
 
-const ThemeToggle = () => {
+export default function ThemeToggle() {
   const { theme, setTheme, toggleTheme } = useThemeStore();
 
   return (
@@ -63,6 +63,4 @@ const ThemeToggle = () => {
       </div>
     </div>
   );
-};
-
-export default ThemeToggle;
+}

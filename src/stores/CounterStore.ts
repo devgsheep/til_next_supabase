@@ -1,4 +1,4 @@
-// Counter Store - zustand로 카운터 관리
+// Counter Store - zustand 로 카운터 관리
 // 1 단계 - store 타입 정의 (통상 types/types.ts 에 정의)
 // interface CounterState {
 //   count: number; // 현재 카운터 값(숫자)
@@ -13,7 +13,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 // 2 단계 - store 구현(필요시 localStorage 활용)
-// create : store, 즉, state 만들기
+// create :  store 즉, state 만들기
 // get : state 읽기
 // set : state 쓰기
 // const counterState = create((set, get) => ({
@@ -23,7 +23,7 @@ import { persist } from 'zustand/middleware';
 //   increment: () => set(state => ({ count: state.count + 1 })),
 // }));
 
-// 2 단계 1. localStorage가 적용안된버전
+// 2 단계 1. localStorage 가 적용 안된버전
 const counterState = create<CounterState>()((set, get) => ({
   // 상태값 (state)
   count: 0,
@@ -31,10 +31,10 @@ const counterState = create<CounterState>()((set, get) => ({
   increment: () => set(state => ({ count: state.count + 1 })),
   decrement: () => set(state => ({ count: state.count - 1 })),
   reset: () => set({ count: 0 }),
-  setCount: (count: number) => set({ count: count }),
+  setCount: (count: number) => set({ count }),
 }));
 
-// 2 단계 2. localStorage가 적용된 버전
+// 2 단계 2. localStorage 가 적용된버전
 const counterLocalState = create<CounterState>()(
   persist(
     (set, get) => ({
@@ -42,7 +42,7 @@ const counterLocalState = create<CounterState>()(
       increment: () => set(state => ({ count: state.count + 1 })),
       decrement: () => set(state => ({ count: state.count - 1 })),
       reset: () => set({ count: 0 }),
-      setCount: (count: number) => set({ count: count }),
+      setCount: (count: number) => set({ count }),
     }),
     { name: 'counter-storage' }
   )

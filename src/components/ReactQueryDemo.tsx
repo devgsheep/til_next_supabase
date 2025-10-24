@@ -1,11 +1,10 @@
 // 테스트 컴포넌트
 'use client';
-
-import { usePrefetchQuery } from '@/hooks/useQueryIntergration';
+import { usePrefetchQuery } from '@/hooks/useQueryIntegration';
 import { useState } from 'react';
-import UsersList from './UsersList';
 import UserDetail from './UserDetail';
-import PostManager from './PostManager';
+import UsersList from './UsersList';
+import Postmanager from './Postmanager';
 
 function ReactQueryDemo() {
   // 프리패치 기능으로 데이터를 사용자가 필요한 것을 예측 캐싱
@@ -117,7 +116,7 @@ function ReactQueryDemo() {
 
         {/* 게시글 관리 섹션 */}
         <div className='mt-8'>
-          <PostManager />
+          <Postmanager />
         </div>
       </div>
     </div>
