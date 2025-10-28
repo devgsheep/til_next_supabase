@@ -38,6 +38,7 @@ function SignUp() {
         />
         <Input
           value={password}
+          disabled={isPending}
           onChange={e => setPassword(e.target.value)}
           type='password'
           placeholder='password'
