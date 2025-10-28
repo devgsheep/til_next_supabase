@@ -3,6 +3,7 @@ import { signInWithOAuth } from '@/apis/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSignIn } from '@/hooks/mutations/useSignIn';
+import { useSignInWithGoogle } from '@/hooks/mutations/useSigninWithGoogle';
 import { useSignInWithKakao } from '@/hooks/mutations/useSignInWithKakao';
 import Link from 'next/link';
 import React, { useState } from 'react';
@@ -22,6 +23,13 @@ function SignIn() {
     useSignInWithKakao();
   const handleSignWithKakao = () => {
     signInWithKakao('kakao');
+  };
+
+  // 구글 로그인
+  const { mutate: signInWithGoogle, isPending: isPendingGoogle } =
+    useSignInWithGoogle();
+  const handleSignWithGoogle = () => {
+    signInWithGoogle('google');
   };
 
   // 이메일로 로그인
@@ -65,11 +73,19 @@ function SignIn() {
         </Button>
         {/* 카카오 소셜 로그인 */}
         <Button
-          className='w-full'
+          className='w-full bg-amber-400'
           onClick={handleSignWithKakao}
           disabled={isPendingKakao}
         >
           카카오 계정으로 로그인
+        </Button>
+        {/* 구글 소셜 로그인 */}
+        <Button
+          onClick={handleSignWithGoogle}
+          disabled={isPendingGoogle}
+          className='w-full bg-blue-100 text-blue-800'
+        >
+          구글 계정으로 로그인
         </Button>
       </div>
       <div>
