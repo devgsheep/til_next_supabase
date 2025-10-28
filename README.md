@@ -1,72 +1,204 @@
-# Supabase 구글 소셜 로그인
+# Supabase 인증 에러 처리하기
 
-## 1. 개발자 사이트 등록 및 Supabase 세팅
+## 1. 인증 에러 정보 받기
 
-- https://cloud.google.com/cloud-console?hl=ko
-
-## 2. UI 작성
-
-- `/src/app/signin/page.tsx` 업데이트
-
-```tsx
-{
-  /* 구글 소셜 로그인 */
-}
-<Button className='w-full'>구글 계정으로 로그인</Button>;
-```
-
-## 3. API 작성
-
-- `/src/apis/auth.ts` 기능 재활용
+- `/src/apis/auth.ts` 파악하기
 
 ```ts
-import { Provider } from '@supabase/auth-js';
-```
+// supabase 백엔드에 사용자 이메일 로그인
+export async function signInWithPassword({
+  email,
+  password,
+}: {
+  email: string;
+  password: string;
+}) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-```ts
-// supabase 백엔드에 소셜 로그인
-export async function signInWithOAuth(provider: Provider) {
-  const { data, error } = await supabase.auth.signInWithOAuth({ provider });
+  // 이 부분이 에러에 대한 정보를 가지고 있음
   if (error) throw error;
+
   return data;
 }
 ```
 
-## 4. Mutation 작성
+## 2. Mutation 에서 에러 정보 확인 및 처리
 
-- `/src/hooks/mutations/useSigninWithGoogle.ts` 생성
+- `/src/hooks/mutations/useSignIn.ts`
 
 ```ts
-import { signInWithOAuth } from '@/apis/auth';
+import { signInWithPassword } from '@/apis/auth';
 import { useMutation } from '@tanstack/react-query';
 
-export function useSignInWithGoogle() {
-  return useMutation({ mutationFn: signInWithOAuth });
+export function useSignIn() {
+  return useMutation({
+    mutationFn: signInWithPassword,
+    // 자동으로 error 전달받음
+    onError: error => {
+      console.error(error);
+      alert(error.message);
+    },
+  });
 }
 ```
 
-## 5. 활용하기
+## 3. shadcn/ui 의 Sonner 컴포넌트 활용
 
-- `/src/app/signin/page.tsx` 업데이트
+- https://ui.shadcn.com/docs/components/sonner
+- `npx shadcn@latest add sonner`
+
+### 3.1. 토스트 안내메시지 (앱 전체에서 활용 필요)
+
+- 전체 레이아웃에 배치하는 것이 좋음.
+- 안타깝게도 /src/app/layout.tsx에 "use client" 사용은 고민 필요
+- 별도의 `토스트용 컴포넌트`를 생성해서 layout.tsx에 배치 권장함
+
+### 3.2. 토스트 컴포넌트 생성
+
+- `/src/components/providers/ToastProvider.tsx 파일` 생성
 
 ```tsx
-// 구글 로그인
-const { mutate: signInWithGoogle, isPending: isPendingGoogle } =
-  useSignInWithGoogle();
-const handleSignWithGoogle = () => {
-  signInWithGoogle('google');
+'use client';
+import { Toaster } from '../ui/sonner';
+
+export default function ToastProvider() {
+  return <Toaster />;
+}
+```
+
+### 3.3. layout.tsx에 배치하기
+
+- `/src/app/layout.tsx` 업데이트(참조)
+- 앱 전체에서 활용 가능하도록
+
+```tsx
+// 컴포넌트 배치
+<ToastProvider />
+```
+
+### 3.4. 이벤트 발생시키기
+
+- `/src/hooks/mutations/useSignIn.ts`
+
+```ts
+import { signInWithPassword } from '@/apis/auth';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+export function useSignIn() {
+  return useMutation({
+    mutationFn: signInWithPassword,
+    // 자동으로 error 전달받음
+    onError: error => {
+      console.error(error);
+      // Sonner로 띄우기
+      toast.error(error.message, { position: 'top-center' });
+    },
+  });
+}
+```
+
+## 4. 에러 발생시 우리가 원하는 함수 실행시키기
+
+### 4.1. `콜백함수 전달`하기
+
+- `/src/app/signin/page.tsx`
+
+```tsx
+// 이메일로 로그인
+const { mutate: signInPassword, isPending: isPendingPassword } =
+  useSignInWithPassword();
+```
+
+- 단계 1. 객체 전달
+
+```tsx
+const { mutate: signInPassword, isPending: isPendingPassword } =
+  useSignIn(객체);
+```
+
+- 단계 2. 객체 정의
+
+```tsx
+const { mutate: signInPassword, isPending: isPendingPassword } = useSignIn({});
+```
+
+- 단계 3. 객체에 키명: 기능정의
+
+```tsx
+const { mutate: signInPassword, isPending: isPendingPassword } = useSignIn({
+  onError: () => {
+    setPassword('');
+  },
+});
+```
+
+- 단계 4. 훅에서 전달된 객체(콜백 함수 형태 값)를 처리하는 과정
+
+```ts
+import { signInWithPassword } from '@/apis/auth';
+import { useMutationCallback } from '@/types/types';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+export function useSignIn(callback?: useMutationCallback) {
+  return useMutation({
+    mutationFn: signInWithPassword,
+    // 자동으로 error 전달받음
+    onError: error => {
+      console.error(error);
+      // Sonner로 띄우기
+      toast.error(error.message, { position: 'top-center' });
+
+      // 전달 받은 함수 실행
+      if (callback?.onError) callback.onError(error);
+    },
+  });
+}
+```
+
+- 단계 5. UI 및 훅 분리
+
+- Hook 부분
+
+```tsx
+export function useSignIn(callback?: useMutationCallback) {
+  return useMutation({
+    mutationFn: signInWithPassword,
+    // 자동으로 error 전달받음
+    onError: error => {
+      console.error(error);
+
+      if (callback?.onError) callback.onError(error);
+    },
+  });
+}
+```
+
+- UI 부분
+
+```tsx
+const { mutate: signInPassword, isPending: isPendingPassword } = useSignIn({
+  onError: error => {
+    setPassword('');
+    // Sonner로 띄우기
+    toast.error(error.message, { position: 'top-center' });
+  },
+});
+```
+
+### 4.2. `Mutation 콜백함수 타입을 정의`해서 활용하시길 권장
+
+- `/src/types/types.ts` 참조
+
+```ts
+export type useMutationCallback = {
+  onError?: (error: Error) => void;
+  onSuccess?: () => void;
+  onMutate?: () => void;
+  onSettled?: () => void;
 };
-```
-
-```tsx
-{
-  /* 구글 소셜 로그인 */
-}
-<Button
-  onClick={handleSignWithGoogle}
-  disabled={isPendingGoogle}
-  className='w-full bg-blue-100 text-blue-800'
->
-  구글 계정으로 로그인
-</Button>;
 ```

@@ -7,16 +7,19 @@ import { useSignInWithGoogle } from '@/hooks/mutations/useSigninWithGoogle';
 import { useSignInWithKakao } from '@/hooks/mutations/useSignInWithKakao';
 import Link from 'next/link';
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 
 function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const {
-    mutate: signInPassword,
-    isPending: isPendingPassword,
-    isError,
-  } = useSignIn();
+  const { mutate: signInPassword, isPending: isPendingPassword } = useSignIn({
+    onError: error => {
+      setPassword('');
+      // Sonner로 띄우기
+      toast.error(error.message, { position: 'top-center' });
+    },
+  });
 
   // 카카오 로그인
   const { mutate: signInWithKakao, isPending: isPendingKakao } =
@@ -40,7 +43,7 @@ function SignIn() {
     signInPassword({ email, password });
   };
 
-  if (isError) return;
+  // if (isError) return;
 
   return (
     <div className='flex flex-col gap-8'>
