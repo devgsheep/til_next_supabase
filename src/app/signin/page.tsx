@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useSignIn } from '@/hooks/mutations/useSignIn';
 import { useSignInWithGoogle } from '@/hooks/mutations/useSigninWithGoogle';
 import { useSignInWithKakao } from '@/hooks/mutations/useSignInWithKakao';
+import { getErrorMessage } from '@/lib/error';
 import Link from 'next/link';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
@@ -17,20 +18,38 @@ function SignIn() {
     onError: error => {
       setPassword('');
       // Sonner로 띄우기
-      toast.error(error.message, { position: 'top-center' });
+      // 한글 메시지로 교체
+      const message = getErrorMessage(error);
+      toast.error(message, { position: 'top-center' });
     },
   });
 
   // 카카오 로그인
   const { mutate: signInWithKakao, isPending: isPendingKakao } =
-    useSignInWithKakao();
+    useSignInWithKakao({
+      onError: error => {
+        setPassword('');
+        // Sonner로 띄우기
+        // 한글 메시지로 교체
+        const message = getErrorMessage(error);
+        toast.error(message, { position: 'top-center' });
+      },
+    });
   const handleSignWithKakao = () => {
     signInWithKakao('kakao');
   };
 
   // 구글 로그인
   const { mutate: signInWithGoogle, isPending: isPendingGoogle } =
-    useSignInWithGoogle();
+    useSignInWithGoogle({
+      onError: error => {
+        setPassword('');
+        // Sonner로 띄우기
+        // 한글 메시지로 교체
+        const message = getErrorMessage(error);
+        toast.error(message, { position: 'top-center' });
+      },
+    });
   const handleSignWithGoogle = () => {
     signInWithGoogle('google');
   };
