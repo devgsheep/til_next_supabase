@@ -1,813 +1,260 @@
-# 캐싱 데이터 무효화하기
+# 프로필 업데이트 하기
 
-- 보관하고 있는 캐시된 데이터를 특정 시점에 무효화가 가능해야함.
-- 특정시점 : `데이터를 추가하거나 수정하는 경우`
-- Mutation이 진행되는 시점에 onSuccess 된 경우에 필요함.
-- onSuccess 이벤트 핸들러에서 캐시 데이터를 수정하고 즉시 렌더링 하도록 구성
+- 회원가입시 회원프로필 업데이트
+- 로그인 후 회원정보가 없으면 정보를 Insert 해준다.
 
-## 1. Mutation을 위한 API를 생성함.
+## 1. API 만들기
 
-- `/src/apis/todo.ts` 업데이트
+- `/src/apis/profile.ts 파일` 생성
 
 ```ts
-// 새로운 할일 등록 API
-export async function createTodo(title: string) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL_DEMO}/todos`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ title }),
-    }
-  );
-  if (!response.ok) throw new Error('Failed to create todo');
-  const data: Todo = await response.json();
+import supabase from '@/lib/supabase/client';
+// 1. 회원정보 읽기
+// 회원의 ID를 전달받아서 정보 데이터 반환함.
+// 비동기 작업이므로 async 적용
+export async function fetchProfile(userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
   return data;
 }
 ```
 
-## 2. hooks 만들기
+## 2. 쿼리 키 팩토리를 생성
 
-- `/src/hooks/todos/mutations 폴더` 생성
-- `/src/hooks/todos/mutations/useCreateMutation.ts 파일` 생성
+- `쿼리 키`를 별도로 생성 관리함.
+- `/src/lib/constants.ts` 업데이트
 
 ```ts
-import { createTodo } from '@/apis/todo';
-import { useMutation } from '@tanstack/react-query';
-
-export default function useCreateMutation() {
-  return useMutation({
-    mutationFn: createTodo,
-    onError: error => {
-      console.log(error);
-    },
-    onSuccess: () => {
-      // 새로운 데이터가 들어왔으니 처음부터 다시 데이터 리셋
-      window.location.reload();
-    },
-  });
+import supabase from '@/lib/supabase/client';
+// 1. 회원정보 읽기
+// 회원의 ID를 전달받아서 정보 데이터 반환함.
+// 비동기 작업이므로 async 적용
+export async function fetchProfile(userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return data;
 }
 ```
 
-## 3. 효율적인 캐시된 데이터 무효화하기
+## 3. hook 만들기
 
-- `window.location.reload()` 효율적이지 않은 방안
-
-### 3.1. queryClient 를 활용해서 캐시된 데이터 무효화 하기
-
-```ts
-import { createTodo } from '@/apis/todo';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-export default function useCreateMutation() {
-  // 1. 전역으로 생성해둔 React Query의 상태관리를 활용한다.
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: createTodo,
-    onError: error => {
-      console.log(error);
-    },
-    onSuccess: () => {
-      // 새로운 데이터가 들어왔으니 처음부터 다시 데이터 리셋
-      // window.location.reload();
-
-      // 아래 코드는 데이터를 무효화시켜서 리패칭을 실행한다.
-      queryClient.invalidateQueries({ queryKey: ['todos'] });
-    },
-  });
-}
-```
-
-### 3.2. 쿼리의 키를 자동으로 관리해 주는 방식을 도입하자.
-
-- 쿼리키를 여러 곳에서 작성하면 문제(오타, 잘못된 키 등)가 발생할 소지가 높다.
-- `쿼리키 팩토링 방식`을 실무에서는 선호함.
-- `/src/lib/constants.ts 파일` 생성
+- `/src/hooks/queries 폴더` 생성
+- `/src/hooks/queries/useProfileData.ts 파일` 생성
 
 ```ts
-// 쿼리키 팩토링 상수
-export const QUERY_KEYS = {
-  todo: {
-    all: ['todos'],
-    list: ['todos', 'list'],
-    detail: (id: string) => ['todos', 'detail', id],
-  },
-};
-```
-
-### 3.3. QUERY_KEYS 활용하여 관리하기
-
-```ts
-import { createTodo } from '@/apis/todo';
-import { QUERY_KEYS } from '@/lib/constants';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-export default function useCreateMutation() {
-  // 1. 전역으로 생성해둔 React Query의 상태관리를 활용한다.
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: createTodo,
-    onError: error => {
-      console.log(error);
-    },
-    onSuccess: () => {
-      // 새로운 데이터가 들어왔으니 처음부터 다시 데이터 리셋
-      // window.location.reload();
-
-      // 2. 아래 코드는 데이터를 무효화시켜서 리패칭을 실행한다.
-      // 3. QUERY_KEYS로 적용
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-    },
-  });
-}
-```
-
-```ts
-import { fetchTodos } from '@/apis/todo';
+import { fetchProfile } from '@/apis/profile';
 import { QUERY_KEYS } from '@/lib/constants';
 import { useQuery } from '@tanstack/react-query';
 
-export function useFetchTodos() {
+export default function useProfileData(userId?: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.todo.list,
-    queryFn: fetchTodos,
+    queryKey: QUERY_KEYS.profile.byId(userId!),
+    queryFn: () => fetchProfile(userId!),
+    enabled: !!userId,
   });
 }
 ```
 
-```ts
-import { fetchTodoById } from '@/apis/todo';
-import { QUERY_KEYS } from '@/lib/constants';
-import { useQuery } from '@tanstack/react-query';
+## 4. 활용하기
 
-export function useTodoDataById(id: number) {
-  return useQuery({
-    queryKey: QUERY_KEYS.todo.detail(id.toString()),
-    queryFn: () => fetchTodoById(id),
-
-    staleTime: 5000, // 5초 동안 fresh 유효기간
-
-    gcTime: 10000, // 10초 동안 inactive 상태 지정
-  });
-}
-```
-
-## 4. 전체를 다시 불러들이는 방식 개선
-
-### 4.1. 문제점
-
-- `queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });`
-- 위의 경우에 너무 많은 데이터를 불러오는 경우에는 조금 고민을 하자.
-- 서버에 부하가 되고, 성능상 좋지 않다.
-- Mutation 에 onSuccess 에 전달되어지는 데이터를 활용하기를 권장함.
-- 아래의 API 에서는 성공시 data를 return 받고록 구성됨
-
-```ts
-// 새로운 할일 등록 API
-export async function createTodo(title: string) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL_DEMO}/todos`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ title }),
-    }
-  );
-  if (!response.ok) throw new Error('Failed to create todo');
-  const data: Todo = await response.json();
-  return data;
-}
-```
-
-### 4.2. 해결 과정
-
-- API 호출 후 return 결과는 `onSuccess로 전달`됨.
-
+- `/src/components/providers/SessionProvider.tsx` 업데이트
 - 1단계
 
-```ts
-    onSuccess: (API 실행 후 리턴받은 데이터) => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-    },
-```
+```tsx
+'use client';
+import supabase from '@/lib/supabase/client';
+import { useSession, useSessionLoaded, useSetSession } from '@/stores/session';
+import { useEffect } from 'react';
+import { GlobalLoading } from '../GlobalLoading';
+import useProfileData from '@/hooks/queries/useProfileData';
 
-- 2단계
+interface SessionProviderProps {
+  children: React.ReactNode;
+}
 
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData();
-    },
-```
+export default function SessionProvider({ children }: SessionProviderProps) {
+  // 1단계. 현재 세션 Store 로 부터 사용자의 세션 데이터를 불러옴
+  const session = useSession();
 
-- 3단계 : `Todo 타입의 배열` 이므로
+  const setSession = useSetSession();
+  const isSessionLoaded = useSessionLoaded();
+  // 2단계
+  // session 데이터 안쪽의 user.id를 인수로 전달함
+  const { data: profile, isLoading: isProfileLoading } = useProfileData(
+    session?.user.id
+  ); // ! 타입단언으로 있다고 정의함
 
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>();
-    },
-```
+  useEffect(() => {
+    // Supabase의 인증의 상태가 변함을 체크함.
+    supabase.auth.onAuthStateChange((event, session) => {
+      // zustand에 보관
+      setSession(session);
+    });
+  }, []);
 
-- 4단계 : `매개변수 1, 매개변수 2` 이므로
+  // 아직 세션이 없다면
+  if (!isSessionLoaded) return <GlobalLoading />;
 
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(수정할캐시 데이터의 키값, 화살표함수);
-    },
-```
-
-- 5단계 : `쿼리 키 적용`
-
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.all, 화살표함수);
-    },
-```
-
-- 6단계 : `화살표 함수 적용`
-
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.all, () => {});
-    },
-```
-
-- 7단계 : `화살표함수 매개변수 적용`
-
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.all, (키 값을 갖는 기존 캐시데이터) => {});
-    },
-```
-
-- 8단계 : `새로운 캐시 데이터 리턴`
-
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.all, prevTodos => {
-        // 반환될 업데이트한 캐시 데이터를 리턴
-      });
-    },
-```
-
-- 9단계
-
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.all, prevTodos => {
-        // 반환될 업데이트한 캐시 데이터를 리턴
-        if (!prevTodos) return [data];
-        return [...기존캐시데이터, data];
-      });
-    },
-```
-
-- 10단계
-
-```ts
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.all, prevTodos => {
-        // 반환될 업데이트한 캐시 데이터를 리턴
-        if (!prevTodos) return [data];
-        return [...prevTodos, data];
-      });
-    },
-```
-
-### 4.3. 최종 코드
-
-```ts
-import { createTodo } from '@/apis/todo';
-import { QUERY_KEYS } from '@/lib/constants';
-import { Todo } from '@/types/todo-type';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-export default function useCreateMutation() {
-  // 1. 전역으로 생성해둔 React Query의 상태관리를 활용한다.
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: createTodo,
-    onError: error => {
-      console.log(error);
-    },
-    onSuccess: data => {
-      // queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.all });
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.all, prevTodos => {
-        // 반환될 업데이트한 캐시 데이터를 리턴
-        if (!prevTodos) return [data];
-        return [...prevTodos, data];
-      });
-    },
-  });
+  return <div>{children}</div>;
 }
 ```
 
-## 5. Optimistic Updates (낙관적 업데이트)
-
-- `성공적으로 데이터의 수정 요청이 될것이라고 미리 판단`해서 업데이트함.
-- 네트워크 요청이 성공하기도 전에 그냥 성공을 가정하고 반영해줌.
-- UI상 많은 서비스가 이런 형태로 제공됨.
-
-### 5.1. completed 토글에 적용하기
-
-- 할일의 토글 상태를 표시에 적용해 봄
-- `/src/components/todo/TodoItem.tsx` 업데이트
+- 2단계 : React Query의 default 옵션 적용하기
+- 굳이 profiles 테이블에 있는지 4번이나 질의하는 것은 필요없다.
+- `/src/components/providers/QueryProvider.tsx` 업데이트
 
 ```tsx
+/*
+QueryClient 를 App 전체에 제공함
+- 모든 하위 컴포넌트에서 useQuery, useMutaion 등의 훅을 사용할 수있게함
+ **/
 'use client';
-import Link from 'next/link';
-import { Button } from '../ui/button';
 
-export default function TodoItem({
-  id,
-  content,
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools/production';
+import { useState } from 'react';
+
+export default function QueryProvider({
+  children,
 }: {
-  id: number;
-  content: string;
+  children: React.ReactNode;
 }) {
-  const handleDeleteClick = () => {};
-
-  return (
-    <div className='flex items-center justify-between border p-2'>
-      <div className='flex gap-5'>
-        <input type={'checkbox'} />
-        <Link href={`/todo-detail/${id}`}>{content}</Link>
-      </div>
-
-      <Button onClick={handleDeleteClick} variant={'destructive'}>
-        삭제
-      </Button>
-    </div>
+  // React 라면 아래 설정은 달라집니다.
+  // 현재 Next.js 에다가 셋팅을 진행함.
+  // 서버 사이드 렌더링을 위한 QueryClient 인스턴스 생성
+  // 각 요청마다 새로운 QueryClient 를 생성하여 상태 구분함.
+  const [client, setClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
   );
-}
-```
-
-### 5.2. 이벤트 연결하기
-
-```tsx
-'use client';
-import Link from 'next/link';
-import { Button } from '../ui/button';
-
-export default function TodoItem({
-  id,
-  content,
-}: {
-  id: number;
-  content: string;
-}) {
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log(e.target.checked);
-  };
-
-  const handleDeleteClick = () => {};
 
   return (
-    <div className='flex items-center justify-between border p-2'>
-      <div className='flex gap-5'>
-        <input type={'checkbox'} onChange={handleCheckboxChange} />
-        <Link href={`/todo-detail/${id}`}>{content}</Link>
-      </div>
-
-      <Button onClick={handleDeleteClick} variant={'destructive'}>
-        삭제
-      </Button>
-    </div>
-  );
-}
-```
-
-### 5.3. checked 에 completed 값 연결하기
-
-- `/src/app/todo-list/page.tsx` 업데이트
-
-```tsx
-{
-  todos.map(item => (
-    <TodoItem
-      key={item.id}
-      id={item.id}
-      title={item.title}
-      userId={item.userId}
-      completed={item.completed}
-    />
-  ));
-}
-```
-
-- `/src/components/todo/TodoItem.tsx` 업데이트
-
-```tsx
-'use client';
-import Link from 'next/link';
-import { Button } from '../ui/button';
-import React from 'react';
-import { Todo } from '@/types/todo-type';
-
-export default function TodoItem({ id, title, userId, completed }: Todo) {
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log(e.target.checked);
-  };
-  const handleDeleteClick = () => {};
-
-  return (
-    <div className='flex items-center justify-between border p-2'>
-      <div className='flex gap-5'>
-        <input
-          type={'checkbox'}
-          checked={completed}
-          onChange={handleCheckboxChange}
+    <QueryClientProvider client={client}>
+      {children}
+      {/* npm run dev 상태에서만 개발자 도구 보기 */}
+      {process.env.NODE_ENV === 'development' && (
+        <ReactQueryDevtools
+          initialIsOpen={false}
+          buttonPosition='bottom-right'
         />
-        <Link href={`/todo-detail/${id}`}>{title}</Link>
-      </div>
-
-      <Button onClick={handleDeleteClick} variant={'destructive'}>
-        삭제
-      </Button>
-    </div>
+      )}
+    </QueryClientProvider>
   );
 }
 ```
 
-### 5.4. api 만들기 (할일 항목 업데이트 API)
+## 5. 오류체크하고 기본 profile 입력해주기
 
-```tsx
-// 할일 업데이트 API
-export async function updateTodo(todo: Partial<Todo> & { id: number }) {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL_DEMO}/todos/${todo.id}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(todo),
-    }
-  );
-  if (!response.ok) throw new Error('Failed to update todo');
-  const data: Todo = await response.json();
-  return data;
-}
-```
+- 자동으로 기본 프로필 생성함.
 
-### 5.5. hook 만들기
+### 5.1. 중복되지 않는 닉네임 생성 기능 추가
 
-- `/src/hooks/todos/mutations/useUpdateTodoMutation.ts 파일` 생성
+- `/src/lib/utils.ts` 추가
 
 ```ts
-import { updateTodo } from '@/apis/todo';
-import { useMutation } from '@tanstack/react-query';
-
-export function useUpdateTodoMutation() {
-  return useMutation({
-    mutationFn: updateTodo,
-  });
-}
-```
-
-### 5.6. 활용하기
-
-- `/src/components/todo/TodoItem.tsx` 업데이트
-
-```tsx
-// hook 활용하기
-const { mutate: updateTodo } = useUpdateTodoMutation();
-
-const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  console.log(e.target.checked);
-  updateTodo({ id, completed: !completed });
+// 랜덤하면서 중복되지 않는 닉네임 생성
+export const getRandomNickName = () => {
+  const randomResult = Math.random().toString(36).substring(2, 8);
+  return `user_nickname_${randomResult}`;
 };
 ```
 
-### 5.7. 전체 코드
+### 5.2. API 생성하기
 
-```tsx
-'use client';
-import Link from 'next/link';
-import { Button } from '../ui/button';
-import React from 'react';
-import { Todo } from '@/types/todo-type';
-import { useUpdateTodoMutation } from '@/hooks/todos/mutations/useUpdateTodoMutation';
+- `/src/apis/profile.ts` 기능 추가
 
-export default function TodoItem({ id, title, userId, completed }: Todo) {
-  // hook 활용하기
-  const { mutate: updateTodo } = useUpdateTodoMutation();
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log(e.target.checked);
-    updateTodo({ id, completed: !completed });
-  };
-  const handleDeleteClick = () => {};
-
-  return (
-    <div className='flex items-center justify-between border p-2'>
-      <div className='flex gap-5'>
-        <input
-          type={'checkbox'}
-          checked={completed}
-          onChange={handleCheckboxChange}
-        />
-        <Link href={`/todo-detail/${id}`}>{title}</Link>
-      </div>
-
-      <Button onClick={handleDeleteClick} variant={'destructive'}>
-        삭제
-      </Button>
-    </div>
-  );
+```ts
+// 2. 사용자 정보 생성하기
+export async function createProfile(userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({ id: userId, nickname: '닉네임' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 ```
 
-## 6. 낙관적 업데이트 적용하기
+### 5.3. 프로필 조회 실패시 호출해 주기
 
-- 즉시 요청이 성공할 것이라고 가정하고 체크박스를 바로 변경적용
-- mutate 함수가 실행되면 캐시 데이터를 즉시 업데이트 함.
-
-### 6.1. 단계들
-
-- 1단계
+- `/src/hooks/queries/useProfileData.ts` 업데이트
 
 ```ts
-import { updateTodo } from '@/apis/todo';
-import { useMutation } from '@tanstack/react-query';
-
-export function useUpdateTodoMutation() {
-  return useMutation({
-    mutationFn: updateTodo,
-    // mutate 함수가 실행되는 시점에 작성
-    onMutate: (매개변수로 mutate의 함수의 재료가 전달됨) => {},
-  });
-}
-```
-
-- 2단계
-
-```ts
-import { updateTodo } from '@/apis/todo';
-import { useMutation } from '@tanstack/react-query';
-
-export function useUpdateTodoMutation() {
-  return useMutation({
-    mutationFn: updateTodo,
-    // mutate 함수가 실행되는 시점에 작성
-    onMutate: updateTodo => {
-      // 캐시 데이터를 업데이트 기능 작성
-    },
-  });
-}
-```
-
-- 3단계
-
-```ts
-import { updateTodo } from '@/apis/todo';
+import { createProfile, fetchProfile } from '@/apis/profile';
 import { QUERY_KEYS } from '@/lib/constants';
-import { Todo } from '@/types/todo-type';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import type { PostgrestError } from '@supabase/supabase-js';
 
-export function useUpdateTodoMutation() {
-  // 전역 접근용 변수
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: updateTodo,
-    // mutate 함수가 실행되는 시점에 작성
-    onMutate: updateTodo => {
-      // 캐시 데이터를 업데이트 기능 작성
-      // 2. 데이터 일부만 수정함.
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.list, () => {});
-    },
-  });
-}
-```
-
-- 4단계
-
-```ts
-import { updateTodo } from '@/apis/todo';
-import { QUERY_KEYS } from '@/lib/constants';
-import { Todo } from '@/types/todo-type';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-export function useUpdateTodoMutation() {
-  // 전역 접근용 변수
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: updateTodo,
-    // mutate 함수가 실행되는 시점에 작성
-    onMutate: updatedTodo => {
-      // 캐시 데이터를 업데이트 기능 작성
-      // 2. 데이터 일부만 수정함.
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.list, prevTodos => {
-        if (!prevTodos) return [];
-        return prevTodos.map(todo =>
-          todo.id === updatedTodo.id ? { ...todo, ...updatedTodo } : todo
-        );
-      });
-    },
-  });
-}
-```
-
-- 테스트 해보면 체크박스는 체크되고, 네트워크는 나중에 처리됨을 파악함.
-
-## 7. 예외사항을 반드시 처리해야 합니다.
-
-- 안정적으로 낙관적 업데이트를 처리해주어야 한다.
-
-### 7.1. 비동기 요청이 실패했을 때 처리
-
-- onError 핸들러에서 원상복구 구현
-- 1단계
-
-```ts
-// 에러가 발생
-onError: error => {
-  console.log(error);
-},
-```
-
-- 2단계 : 매개변수를 추가함.
-- valiable : onMutate 매개변수와 동일한 값
-
-```ts
-// 에러가 발생
-onError: (error, valiable) => {
-  console.log(error);
-},
-```
-
-- 3단계 : 매개변수를 추가함.
-- context : onMutate 에서 리턴하는 반환값이 들어옴
-- context를 이용해서 요청실패시 원상복구 가능함.
-
-```ts
-// 에러가 발생
-onError: (error, valiable, context) => {
-  console.log(error);
-},
-```
-
-- 4단계 : `일단 원본데이터를 보관`해 둔다. 이후 에러시 복구
-
-```ts
- onMutate: updatedTodo => {
-      // 원본 데이터를 보관
-      const originTodos = queryClient.getQueryData();
-
-      // 낙관적 업데이트 진행
-     ...낙관적 업데이트 코드
-    },
-```
-
-- 5단계
-
-```ts
- onMutate: updatedTodo => {
-      // 원본 데이터를 보관
-      const originTodos = queryClient.getQueryData<Todo[]>();
-
-      // 낙관적 업데이트 진행
-     ...낙관적 업데이트 코드
-    },
-```
-
-- 6단계
-
-```ts
- onMutate: updatedTodo => {
-      // 원본 데이터를 보관
-      const originTodos = queryClient.getQueryData<Todo[]>(키명);
-
-      // 낙관적 업데이트 진행
-     ...낙관적 업데이트 코드
-    },
-```
-
-- 7단계
-
-```ts
- onMutate: updatedTodo => {
-      // 원본 데이터를 보관
-      const originTodos = queryClient.getQueryData<Todo[]>(
-        QUERY_KEYS.todo.list,
-      );
-
-      // 낙관적 업데이트 진행
-     ...낙관적 업데이트 코드
-    },
-```
-
-- 8단계
-
-```ts
- onMutate: updatedTodo => {
-      // 원본 데이터를 보관
-      const originTodos = queryClient.getQueryData<Todo[]>(
-        QUERY_KEYS.todo.list,
-      );
-
-      // 낙관적 업데이트 진행
-     ...낙관적 업데이트 코드
-
-      // 원상 복구할 데이터를 리턴해 줌
-      return { originTodos };
-    },
-```
-
-- 9단계 : 복구 파일 활용하기(`return originTodos;`)
-- onError 핸들러에 context를 활용함
-
-```ts
-onError: (error, valiable, context) => {
-  console.log(error);
-  // 원상복구를 위해서 context에 보관해둔 값으로 갱신한다
-  if (context?.originTodos) {
-    queryClient.setQueryData<Todo[]>(
-    QUERY_KEYS.todo.list,
-    context.originTodos
-    );
-  }
-  return { error };
-},
-```
-
-- 전체코드
-
-```ts
-import { updateTodo } from '@/apis/todo';
-import { QUERY_KEYS } from '@/lib/constants';
-import { Todo } from '@/types/todo-type';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-export function useUpdateTodoMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: updateTodo,
-    onMutate: updatedTodo => {
-      // 원본 데이터를 보관
-      const originTodos = queryClient.getQueryData<Todo[]>(
-        QUERY_KEYS.todo.list
-      );
-
-      // 낙관적 업데이트 진행
-      queryClient.setQueryData<Todo[]>(QUERY_KEYS.todo.list, prevTodos => {
-        if (!prevTodos) return [];
-        return prevTodos.map(todo =>
-          todo.id === updatedTodo.id ? { ...todo, ...updatedTodo } : todo
-        );
-      });
-
-      // 원상 복구할 데이터를 리턴해 줌
-      return { originTodos };
-    },
-    // 에러가 발생
-    onError: (error, valiable, context) => {
-      console.log(error);
-      if (context?.originTodos) {
-        queryClient.setQueryData<Todo[]>(
-          QUERY_KEYS.todo.list,
-          context.originTodos
-        );
+export default function useProfileData(userId?: string) {
+  return useQuery({
+    queryKey: QUERY_KEYS.profile.byId(userId!),
+    queryFn: async () => {
+      try {
+        const profile = await fetchProfile(userId!);
+        return profile;
+      } catch (error) {
+        if ((error as PostgrestError).code === 'PGRST116') {
+          // 기본 사용자 생성
+          return await createProfile(userId!);
+        }
+        throw error;
       }
-      return { error };
     },
+    enabled: !!userId,
   });
 }
 ```
 
-- 테스트 해보기 : 의도적으로 오류내기
+### 5.4. 다른 사용자가 만약 없는 사용자 프로필을 호출한다면
 
-### 7.2. 타이밍에 의한 낙관적 업데이트 싱크 오류
-
-- 수정하고 있는데 다른 곳에서 목록을 조회하고 있다.
-- 수정 진행중 ===> 목록조회 ===> 수정완료 ===> 목록조회 완료
-- 시점의 문제를 해결해야 한다.
-- async await 을 활용하여 키 실행을 취소해야한다.
+- 타인의 프로필은 생성하지 않도록 처리 필요
 
 ```ts
-    onMutate: async updatedTodo => {
-      // 요청 취소 기능 구현
-      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.todo.list });
+import { createProfile, fetchProfile } from '@/apis/profile';
+import { QUERY_KEYS } from '@/lib/constants';
+import { useQuery } from '@tanstack/react-query';
+import type { PostgrestError } from '@supabase/supabase-js';
+import { useSession } from '@/stores/session';
 
-      ...나머지 코드
+export default function useProfileData(userId?: string) {
+  // 나의 정보 확인
+  const session = useSession();
+  // 나의 계정인지를 검사
+  const isMine = userId === session?.user.id;
+
+  return useQuery({
+    queryKey: QUERY_KEYS.profile.byId(userId!),
+    queryFn: async () => {
+      try {
+        const profile = await fetchProfile(userId!);
+        return profile;
+      } catch (error) {
+        // 에러코드 파악으로 처리함
+        if (isMine && (error as PostgrestError).code === 'PGRST116') {
+          // 기본 사용자 생성
+          return await createProfile(userId!);
+        }
+        throw error;
+      }
     },
+    enabled: !!userId,
+  });
+}
 ```
 
-### 7.3. onMutate 데이터와 실제 서버에 수정데이터가 다를 때
-
-- 프론트에서 성공으로 처리되었지만 실제 서버측에서 오류발생 존재함
-- 요청이 종료되었을 때 캐시 데이터를 무효화 시킴
-
-```ts
-// 요청이 완료됨
-    onSettled: () => {
-      // 검증 과정
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.todo.list });
-    },
-```
