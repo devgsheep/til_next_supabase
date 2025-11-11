@@ -2,9 +2,9 @@
 import { signInWithOAuth } from '@/apis/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useSignIn } from '@/hooks/mutations/useSignIn';
-import { useSignInWithGoogle } from '@/hooks/mutations/useSigninWithGoogle';
-import { useSignInWithKakao } from '@/hooks/mutations/useSignInWithKakao';
+import { useSignIn } from '@/hooks/mutations/auth/useSignIn';
+import { useSignInWithGoogle } from '@/hooks/mutations/auth/useSigninWithGoogle';
+import { useSignInWithKakao } from '@/hooks/mutations/auth/useSignInWithKakao';
 import { getErrorMessage } from '@/lib/error';
 import Link from 'next/link';
 import React, { useState } from 'react';

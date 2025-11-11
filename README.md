@@ -1,346 +1,71 @@
-# Post
+# Post 등록하기 (글자)
 
-## 1. Post 추가하기 버튼
+## 1. 글등록 API 작성하기
 
-- `/src/components/post 폴더` 생성
-- `/src/components/post/CreatePostButton.tsx 파일` 생성
-
-```tsx
-import { PlusCircle } from 'lucide-react';
-
-export function CreatePostButton() {
-  return (
-    <div className='bg-muted text-muted-foreground cursor-pointer rounded-xl px-6 py-4'>
-      <div className='flex items-center justify-between'>
-        <div>새글을 등록하세요.</div>
-        <PlusCircle className='h-5 w-5' />
-      </div>
-    </div>
-  );
-}
-```
-
-## 2. 페이지 추가하기
-
-- `/src/app/(protected)/page.tsx` 추가
-
-```tsx
-import { CreatePostButton } from '@/components/post/GreatePostButton';
-import { Button } from '@/components/ui/button';
-
-export default function Home() {
-  return (
-    <div className='flex flex-col gap-10'>
-      <CreatePostButton />
-    </div>
-  );
-}
-```
-
-## 3. 모달 만들기
-
-- `/src/components/modal 폴더` 생성
-- `/src/components/modal/PostEditorModal.tsx 파일` 생성
-
-```tsx
-import { ImageIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-
-export default function PostEditorModal() {
-  return (
-    <Dialog>
-      <DialogContent>
-        <DialogTitle>포스트 작성</DialogTitle>
-        <textarea />
-        <Button>
-          <ImageIcon /> 이미지 추가
-        </Button>
-        <Button>저장</Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
-```
-
-## 4. 모달창 출력 후 스타일하기
-
-```tsx
-'use client';
-import { PlusCircle } from 'lucide-react';
-import PostEditorModal from '../modal/PostEditorModal';
-import { useState } from 'react';
-
-export function CreatePostButton() {
-  const [modalOpen, setModalOpen] = useState(false);
-  return (
-    <>
-      <div
-        onClick={() => setModalOpen(true)}
-        className='bg-muted text-muted-foreground cursor-pointer rounded-xl px-6 py-4'
-      >
-        <div className='flex items-center justify-between'>
-          <div>새글을 등록하세요.</div>
-          <PlusCircle className='h-5 w-5' />
-        </div>
-      </div>
-      <PostEditorModal isOpen={modalOpen} />
-    </>
-  );
-}
-```
-
-```tsx
-import { ImageIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-
-export default function PostEditorModal({ isOpen }: { isOpen: boolean }) {
-  return (
-    <Dialog open={isOpen}>
-      <DialogContent className='max-h-[90vh]'>
-        <DialogTitle>포스트 작성</DialogTitle>
-        <textarea
-          className='max-h-125 min-h-25 focus:outline-none'
-          placeholder='새로운 글을 등록해주세요'
-        />
-        <Button variant='outline' content='cursor-pointer'>
-          <ImageIcon /> 이미지 추가
-        </Button>
-        <Button className='cursor-pointer'>저장</Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
-```
-
-- `/src/components/post/CreatePostButton.tsx` 다시 원복 시킴
-
-```tsx
-'use client';
-import { PlusCircle } from 'lucide-react';
-
-export function CreatePostButton() {
-  return (
-    <div className='bg-muted text-muted-foreground cursor-pointer rounded-xl px-6 py-4'>
-      <div className='flex items-center justify-between'>
-        <div>새글을 등록하세요.</div>
-        <PlusCircle className='h-5 w-5' />
-      </div>
-    </div>
-  );
-}
-```
-
-## 5. zustand로 modal의 상태를 전역 관리하기
-
-### 5.1. store 만들기
-
-- `/src/stores/postEditorModal.ts 파일` 생성
+- `/src/apis/post.ts 파일` 생성
 
 ```ts
-import { ImageIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-
-export default function PostEditorModal({ isOpen }: { isOpen: boolean }) {
-  return (
-    <Dialog open={isOpen}>
-      <DialogContent className='max-h-[90vh]'>
-        <DialogTitle>포스트 작성</DialogTitle>
-        <textarea
-          className='max-h-125 min-h-25 focus:outline-none'
-          placeholder='새로운 글을 등록해주세요'
-        />
-        <Button variant='outline' content='cursor-pointer'>
-          <ImageIcon /> 이미지 추가
-        </Button>
-        <Button className='cursor-pointer'>저장</Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-```
-
-### 5.2. PostEditorModal 컴포넌트를 화면에 렌더링하기
-
-- 화면에 출력을 시키려면 누군가의 `자식 컴포넌트` 여야한다.
-- `/src/components/providers/ModalProvider.tsx 파일` 생성
-- 여기에서 새로운 `createPortal 문법`을 살펴봄.
-
-```tsx
-'use-client';
-import { ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import PostEditorModal from '../modal/PostEditorModal';
-
-export default function ModalProvider({ children }: { children: ReactNode }) {
-  return (
-    <>
-      {createPortal(
-        <PostEditorModal />,
-        document.getElementById('modal-root')!
-      )}
-
-      {children}
-    </>
-  );
+// 1. 글 등록
+export async function createPost(content: string) {
+  const { data, error } = await supabase.from('posts').insert({ content });
+  if (error) throw error;
+  return data;
 }
 ```
 
-### 5.3. 새로운 div 태그 만들기
+## 2. hook 생성하기
 
-- `/src/app/layout.tsx` 업데이트
+- Mutation 들을 정리하자.
+- `/src/hooks/mutations/auth 폴더` 생성 및 관련 파일 이동
+- `/src/hooks/mutations/post 폴더`
+- `/src/hooks/mutations/post/useCreatePost.ts 파일` 생성
+
+```ts
+import { createPost } from '@/apis/post';
+import { useMutationCallback } from '@/types/types';
+import { useMutation } from '@tanstack/react-query';
+
+export function useCreatePost(callback?: useMutationCallback) {
+  return useMutation({
+    mutationFn: createPost,
+    onSuccess: () => {
+      if (callback?.onSuccess) callback.onSuccess();
+    },
+    onError: error => {
+      if (callback?.onError) callback.onError(error);
+    },
+  });
+}
+```
+
+## 3. 적용하기
+
+- `/src/components/modal/PostEditorModal.tsx` 적용
+- 단계 1. mutation 활용
 
 ```tsx
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import './globals.css';
-import QueryProvider from '@/components/providers/QueryProvider';
-import Link from 'next/link';
-import Image from 'next/image';
-import { Sun } from 'lucide-react';
-import ToastProvider from '@/components/providers/ToastProvider';
-import SessionProvider from '@/components/providers/SessionProvider';
-import ModalProvider from '@/components/providers/ModalProvider';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
+// 글 등록 mutation을 사용함.
+const { mutate: createPost, isPending: isCreatePostPending } = useCreatePost({
+  onSuccess: () => {
+    close();
+  },
+  onError: error => {
+    toast.error('포스트 생성에 실패했습니다.', { position: 'top-center' });
+  },
 });
+```
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+- 단계 2.
 
-export const metadata: Metadata = {
-  title: 'Create Next App',
-  description: 'Generated by create next app',
+```tsx
+// 실제 포스트 등록하기
+const handleCreatePost = () => {
+  if (content.trim() === '') return;
+  createPost(content);
 };
-
-// 이미지 가져오기
-const logo = '/assets/logo.png';
-const defaultAvatar = '/assets/icons/default-avatar.jpg';
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang='ko'>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {/* Portal용 DIV */}
-        <div id='modal-root' />
-
-        <div className='flex min-h-[100vh] flex-col'>
-          <ToastProvider />
-          <QueryProvider>
-            <SessionProvider>
-              <ModalProvider>
-                <header className='h-15 border-b'>
-                  <div className='m-auto flex h-full w-full max-w-175 justify-between px-4'>
-                    <Link href={'/'} className='flex items-center gap-2'>
-                      <Image
-                        src={logo}
-                        alt='SNS 서비스 로고'
-                        width={40}
-                        height={40}
-                      />
-                      <div className='font-bold'>SNS 서비스</div>
-                    </Link>
-                    <div className='flex items-center gap-5'>
-                      <div className='hover:bg-muted cursor-pointer rounded-full p-2'>
-                        <Sun />
-                      </div>
-                      <Image
-                        src={defaultAvatar}
-                        width={24}
-                        height={24}
-                        alt='기본 아바타'
-                        className='h-6'
-                      />
-                    </div>
-                  </div>
-                </header>
-
-                <main className='m-auto w-full max-w-175 flex-1 border-x px-4 py-6'>
-                  {children}
-                </main>
-                <footer className='text-muted-foreground border-t py-10 text-center'>
-                  @devgsheep
-                </footer>
-              </ModalProvider>
-            </SessionProvider>
-          </QueryProvider>
-        </div>
-      </body>
-    </html>
-  );
-}
 ```
 
-## 6. zustand Modal 적용하기
-
-- `/src/components/post/CreatePostButton.tsx`
-
-```tsx
-'use client';
-import { useOpenPostEditorModal } from '@/stores/postEditorModal';
-import { PlusCircle } from 'lucide-react';
-
-export function CreatePostButton() {
-  const openPostEditorModal = useOpenPostEditorModal();
-  return (
-    <div
-      onClick={openPostEditorModal}
-      className='bg-muted text-muted-foreground cursor-pointer rounded-xl px-6 py-4'
-    >
-      <div className='flex items-center justify-between'>
-        <div>새글을 등록하세요.</div>
-        <PlusCircle className='h-5 w-5' />
-      </div>
-    </div>
-  );
-}
-```
-
-- `/src/components/modal/PostEditorModal.tsx` 업데이트
-
-```tsx
-import { ImageIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { usePostEditorModal } from '@/stores/postEditorModal';
-
-export default function PostEditorModal() {
-  const { isOpen, close } = usePostEditorModal();
-
-  return (
-    <Dialog open={isOpen} onOpenChange={close}>
-      <DialogContent className='max-h-[90vh]'>
-        <DialogTitle>포스트 작성</DialogTitle>
-        <textarea
-          className='max-h-125 min-h-25 focus:outline-none'
-          placeholder='새로운 글을 등록해주세요'
-        />
-        <Button variant='outline' content='cursor-pointer'>
-          <ImageIcon /> 이미지 추가
-        </Button>
-        <Button className='cursor-pointer'>저장</Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
-```
-
-## 7. 편의 기능 넣기
-
-### 7.1. 자동으로 내용 높이 창 변경하기
+- 단계 3.
 
 ```tsx
 'use client';
@@ -350,9 +75,20 @@ import { Button } from '@/components/ui/button';
 import { usePostEditorModal } from '@/stores/postEditorModal';
 import { useEffect, useRef, useState } from 'react';
 import { text } from 'stream/consumers';
+import { useCreatePost } from '@/hooks/mutations/post/useCreatePost';
+import { toast } from 'sonner';
 
 export default function PostEditorModal() {
   const { isOpen, close } = usePostEditorModal();
+  // 글 등록 mutation을 사용함.
+  const { mutate: createPost, isPending: isCreatePostPending } = useCreatePost({
+    onSuccess: () => {
+      close();
+    },
+    onError: error => {
+      toast.error('포스트 생성에 실패했습니다.', { position: 'top-center' });
+    },
+  });
   // post에 저장할 내용
   const [content, setContent] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -364,6 +100,19 @@ export default function PostEditorModal() {
     }
   }, [content]);
 
+  // 자동포커스 및 내용초기화
+  useEffect(() => {
+    if (!isOpen) return;
+    textareaRef.current?.focus();
+    setContent('');
+  }, [isOpen]);
+
+  // 실제 포스트 등록하기
+  const handleCreatePost = () => {
+    if (content.trim() === '') return;
+    createPost(content);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={close}>
       <DialogContent className='max-h-[90vh]'>
@@ -371,6 +120,7 @@ export default function PostEditorModal() {
         <textarea
           ref={textareaRef}
           value={content}
+          disabled={isCreatePostPending}
           onChange={e => setContent(e.target.value)}
           className='max-h-125 min-h-25 focus:outline-none'
           placeholder='새로운 글을 등록해주세요'
@@ -378,22 +128,15 @@ export default function PostEditorModal() {
         <Button variant='outline' content='cursor-pointer'>
           <ImageIcon /> 이미지 추가
         </Button>
-        <Button className='cursor-pointer'>저장</Button>
+        <Button
+          disabled={isCreatePostPending}
+          onClick={handleCreatePost}
+          className='cursor-pointer'
+        >
+          저장
+        </Button>
       </DialogContent>
     </Dialog>
   );
 }
 ```
-
-### 7.2. 자동 포커스 및 내용 초기화
-
-```tsx
-// 자동포커스 및 내용초기화
-useEffect(() => {
-  if (!isOpen) return;
-  textareaRef.current?.focus();
-  setContent('');
-}, [isOpen]);
-```
-
-## 8. 이미지 추가하기
