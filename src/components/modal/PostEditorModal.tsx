@@ -9,6 +9,9 @@ import { useCreatePost } from '@/hooks/mutations/post/useCreatePost';
 import { toast } from 'sonner';
 import { Carousel, CarouselContent, CarouselItem } from '../ui/carousel';
 import Image from 'next/image';
+import { createPostWithImages } from '@/apis/post';
+import { useSession } from '@/stores/session';
+import { useOpenAlertModal } from '@/stores/alertModalStore';
 
 type ImageFile = {
   file: File;
@@ -16,6 +19,12 @@ type ImageFile = {
 };
 
 export default function PostEditorModal() {
+  // 사용자 정보 받아오기
+  const session = useSession();
+
+  // 경고창
+  const openAlertModal = useOpenAlertModal();
+
   const { isOpen, close } = usePostEditorModal();
   // 글 등록 mutation을 사용함.
   const { mutate: createPost, isPending: isCreatePostPending } = useCreatePost({
@@ -26,6 +35,7 @@ export default function PostEditorModal() {
       toast.error('포스트 생성에 실패했습니다.', { position: 'top-center' });
     },
   });
+
   // post에 저장할 내용
   const [content, setContent] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -45,6 +55,13 @@ export default function PostEditorModal() {
   // 자동포커스 및 내용초기화
   useEffect(() => {
     if (!isOpen) return;
+
+    // 웹 브라우저의 캐시에 저장된 이미지 리셋
+    images.forEach(img => {
+      // 메모리 상에서 제거
+      URL.revokeObjectURL(img.previewUrl);
+    });
+
     textareaRef.current?.focus();
     setContent('');
     setImages([]);
@@ -53,7 +70,13 @@ export default function PostEditorModal() {
   // 실제 포스트 등록하기
   const handleCreatePost = () => {
     if (content.trim() === '') return;
-    createPost(content);
+    // createPost(content);
+    createPost({
+      content,
+      userId: session!.user.id,
+      // 파일만 추출해주기
+      images: images.map(item => item.file),
+    });
   };
 
   // 이미지들이 선택되었을 때 실행할 핸들러
@@ -75,10 +98,30 @@ export default function PostEditorModal() {
   // 이미지가 제거될 때 실행될 핸들러
   const handleDeleteImage = (img: ImageFile) => {
     setImages(prevImg => prevImg.filter(item => item.previewUrl!));
+    // 웹브라우저 캐시 메모리 지우기
+    URL.revokeObjectURL(img.previewUrl);
+  };
+
+  const handleCloseModal = () => {
+    if (content !== '' || images.length !== 0) {
+      // 안내창을 띄워서 확인 후 닫기 실행 처리
+      openAlertModal({
+        title: '포스트 작성이 완료되지 않았습니다.',
+        description: '화면에서 나가면 작성중이던 내용이 사라집니다.',
+        onPositive: () => {
+          close();
+        },
+        onNegative: () => {
+          console.log('취소 확인');
+        },
+      });
+      return;
+    }
+    close(); // 방지해보자
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={close}>
+    <Dialog open={isOpen} onOpenChange={handleCloseModal}>
       <DialogContent className='max-h-[90vh]'>
         <DialogTitle>포스트 작성</DialogTitle>
         <textarea
