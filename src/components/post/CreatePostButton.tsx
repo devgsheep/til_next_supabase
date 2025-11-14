@@ -1,9 +1,10 @@
 'use client';
-import { useOpenPostEditorModal } from '@/stores/postEditorModal';
+import { useOpenCreatePostEditorModal } from '@/stores/postEditorModal';
 import { PlusCircle } from 'lucide-react';
 
 export function CreatePostButton() {
-  const openPostEditorModal = useOpenPostEditorModal();
+  const openPostEditorModal = useOpenCreatePostEditorModal();
+
   return (
     <div
       onClick={openPostEditorModal}
