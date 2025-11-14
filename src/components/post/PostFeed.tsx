@@ -27,7 +27,7 @@ export default function PostFeed() {
       {/* useInfinite 는 리턴으로 페이지별로 배열로 묶어서 전달함 */}
       {/* map을 2번 반복함 */}
       {data.pages?.map(page =>
-        page.map(post => <PostItem key={post.id} {...post} />)
+        page.map(postId => <PostItem key={postId} postId={postId} />)
       )}
       {isFetchingNextPage && <Loader />}
       {/* 웹브라우저 하단 감지용 DOM 요소를 추가 */}
